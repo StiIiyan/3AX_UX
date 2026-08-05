@@ -14,6 +14,6 @@ self.cursor_position.x, self.cursor_position.y = love.mouse.getPosition()
 '''
 position = 'at'
 payload = '''
-self.cursor_position.x, self.cursor_position.y = getCursorPosition()
+self.cursor_position.x, self.cursor_position.y = getCursorPosition() -- function returns native position when necessary
 '''
 match_indent = true
