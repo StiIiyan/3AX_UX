@@ -99,7 +99,10 @@ function resetSensitivity()
     setSensitivity(SMODS.Mods['WeeCursors'].config.default_sensitivity)
 end
 function getCursorPosition()
-    return CURSOR.x, CURSOR.y
+    if SMODS.Mods['WeeCursors'].config.custom_cursor then
+        return CURSOR.x, CURSOR.y
+    end
+    return love.mouse.getPosition()
 end
 function setCursorPosition(x,y)
     CURSOR.x = x
@@ -109,6 +112,7 @@ end
 
 SMODS.current_mod.config_tab = function()
   return {n=G.UIT.ROOT, config = {align = "cm", padding = 0.05, r = 0.1, colour = G.C.CLEAR}, nodes = {
+      create_toggle({label = "Custom Cursor", ref_table = SMODS.Mods['WeeCursors'].config, ref_value = 'custom_cursor', current_option = SMODS.Mods['WeeCursors'].config.custom_cursor or true}),
       create_slider({label = 'Sensitivity', w = 4, h = 0.4, ref_table = SMODS.Mods['WeeCursors'].config, ref_value = 'default_sensitivity', callback = 'reset_sensitivity', min = 0.5, max = 2, decimal_places = 2, current_option = SMODS.Mods['WeeCursors'].config.default_sensitivity or 1}),
       create_option_cycle({w = 4, scale = 0.8, label = 'M1 Cursor', options = {'Four Fingers','Banner','Cloud 9','Arrowhead','Gros Michel','Bootstraps','Ceremonial Dagger','Rocket','Seltzer'}, opt_callback = 'set_m1_cursor', current_option = SMODS.Mods['WeeCursors'].config.cursor_index or 1}),
       create_toggle({label = "Held Cursor", ref_table = SMODS.Mods['WeeCursors'].config, ref_value = 'is_m1_held', current_option = SMODS.Mods['WeeCursors'].config.is_m1_held or true}),
@@ -121,11 +125,16 @@ local prev_update = love.update
 function love.update(dt)
     prev_update(dt)
     
-    love.mouse.setVisible(false)
-    if CURSOR.in_game_windowed then
-        love.mouse.setRelativeMode(true)
+    if SMODS.Mods['WeeCursors'].config.custom_cursor then
+        love.mouse.setVisible(false)
+        if CURSOR.in_game_windowed then
+            love.mouse.setRelativeMode(true)
+        else
+            love.mouse.setRelativeMode(false)
+        end
     else
-        love.mouse.setRelativeMode(false)
+        love.mouse.setVisible(true) 
+        love.mouse.setRelativeMode(false)   
     end
 end
 
@@ -133,18 +142,20 @@ local prev_draw = love.draw
 function love.draw()
     prev_draw()
 
-    if CURSOR.held == true and SMODS.Mods['WeeCursors'].config.is_m1_held then
-        love.graphics.draw(
-            CURSOR.image_held,
-            CURSOR.x,
-            CURSOR.y
-        )
-    else 
-        love.graphics.draw(
-            CURSOR.image,
-            CURSOR.x - CURSOR.ox,
-            CURSOR.y - CURSOR.oy
-        )
+    if SMODS.Mods['WeeCursors'].config.custom_cursor then
+        if CURSOR.held == true and SMODS.Mods['WeeCursors'].config.is_m1_held then
+            love.graphics.draw(
+                CURSOR.image_held,
+                CURSOR.x,
+                CURSOR.y
+            )
+        else 
+            love.graphics.draw(
+                CURSOR.image,
+                CURSOR.x - CURSOR.ox,
+                CURSOR.y - CURSOR.oy
+            )
+        end
     end
 end
 
@@ -164,23 +175,25 @@ end
 
 local prev_mousemoved = love.mousemoved
 function love.mousemoved(x, y, dx, dy)
-    if CURSOR.in_game_windowed then -- move only when in border
-        CURSOR.x = CURSOR.x + dx * CURSOR.sensitivity
-        CURSOR.y = CURSOR.y + dy * CURSOR.sensitivity
-    end
+    if SMODS.Mods['WeeCursors'].config.custom_cursor then
+        if CURSOR.in_game_windowed then -- move only when in border
+            CURSOR.x = CURSOR.x + dx * CURSOR.sensitivity
+            CURSOR.y = CURSOR.y + dy * CURSOR.sensitivity
+        end
 
-    -- KEEP IN BORDER
-    local outside_game = keepCursorInBorder()
-    if outside_game and G.SETTINGS.WINDOW.screenmode == 'Windowed' then
-        if CURSOR.in_game_windowed then
-            love.mouse.setPosition(getOutsideCoordinates())
+        -- KEEP IN BORDER
+        local outside_game = keepCursorInBorder()
+        if outside_game and G.SETTINGS.WINDOW.screenmode == 'Windowed' then
+            if CURSOR.in_game_windowed then
+                love.mouse.setPosition(getOutsideCoordinates())
+            end
+            CURSOR.in_game_windowed = false
+        else
+            if not CURSOR.in_game_windowed then
+                setCursorPosition(love.mouse.getPosition())
+            end
+            CURSOR.in_game_windowed = true
         end
-        CURSOR.in_game_windowed = false
-    else
-        if not CURSOR.in_game_windowed then
-            setCursorPosition(love.mouse.getPosition())
-        end
-        CURSOR.in_game_windowed = true
     end
 
     prev_mousemoved(x, y, dx, dy)
