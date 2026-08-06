@@ -17,6 +17,10 @@ SMODS.Joker:take_ownership('hanging_chad',
 
 function TryChangeChadSprite(joker_card)
     if not joker_card or not joker_card.ability or joker_card.ability.name ~= "Hanging Chad" then return end
+    if not SMODS.Mods['3axux'].config.gigachad then
+        joker_card.ability.sprite_pos = 0
+        return
+    end
     
     G.GAME.consumeable_buffer = G.GAME.consumeable_buffer + 1
     G.E_MANAGER:add_event(Event({

@@ -1,4 +1,5 @@
 return {
+	["gigachad"] = true,
 	["custom_cursor"] = true,
 	["default_sensitivity"] = 1,
 	["cursor_index"] = 1,
