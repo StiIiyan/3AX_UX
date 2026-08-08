@@ -1,7 +1,8 @@
 local CASCADE_JOKER_TABLE = {}
 
-function jokers_cascade()
+local JOKER_AMOUNT = 50
 
+function jokers_cascade()
   for index = 1, #G.jokers.cards do
     generate_individual_joker_cascade(index)
   end
@@ -28,7 +29,7 @@ function generate_individual_joker_cascade(index)
   local joker = G.jokers.cards[index]
   local current_joker_center = joker.config.center
   local coord_table = get_cascade_coord_table(index)
-  local card_to_card_delay = math.min(.012 - index * 0.002, 0.001) -- speed up for later jokers
+  local card_to_card_delay = 0.01
 
   for i,coords in ipairs(coord_table) do
     delay(card_to_card_delay)
@@ -43,7 +44,7 @@ function generate_individual_joker_cascade(index)
           card:set_edition("e_"..joker.edition.type,true,true)
         end
 
-        CASCADE_JOKER_TABLE[#CASCADE_JOKER_TABLE + 1] = card
+        update_cascade_table(card)
 
         --sounds
         if coord_table[i+1] and coord_table[i+1].y < coords.y 
@@ -54,6 +55,16 @@ function generate_individual_joker_cascade(index)
         return true
       end
     }))
+  end
+end
+
+function update_cascade_table(card)
+  CASCADE_JOKER_TABLE[#CASCADE_JOKER_TABLE + 1] = card
+
+  if SMODS.Mods['3axux'].config.cascade == 2 then
+    if #CASCADE_JOKER_TABLE > JOKER_AMOUNT then
+      CASCADE_JOKER_TABLE[#CASCADE_JOKER_TABLE - JOKER_AMOUNT]:remove()
+    end
   end
 end
 
@@ -68,7 +79,7 @@ function get_cascade_coord_table(index)
   local width = pseudorandom("",8, 20)
   local bounces = math.max(2, math.floor(width / 4 + pseudorandom("",-1.0, 1.0) + 0.5))
   local damping = pseudorandom("",0.3, 0.7) + (6 - bounces) * 0.45
-  local dx = width / 50 -- basically ~50 spawned jokers per joker
+  local dx = width / JOKER_AMOUNT
   local final_corner = { x = result_table[#result_table].x + width, y = result_table[#result_table].y + height }
   
   bounce_table(result_table, final_corner, height, bounces, damping, dx)
@@ -114,7 +125,13 @@ end
 
 local old_win_game = win_game
 function win_game()
+  if SMODS.Mods['3axux'].config.cascade ~= 1 then
     jokers_cascade()
+  end
     
-    old_win_game()
+  old_win_game()
+end
+
+function G.FUNCS.set_cascade(args)
+    SMODS.Mods['3axux'].config.cascade = args.to_key
 end
