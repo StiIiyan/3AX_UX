@@ -55,7 +55,7 @@ SMODS.Joker:take_ownership('chicot',
     no_mod_badges = true,
     key = "chicot",
     loc_txt = {
-        name = Fade_Gradient({HEX("EE8F8D"),HEX("FD5F55")},'chicot','Chicot',2,false),
+        name = Fade_Gradient({HEX("EE8F8D"),HEX("FD5F55"),HEX("FCDCDC")},'chicot','Chicot',3,true),
         text = {
             "Disables effect of",
             "every {C:attention}Boss Blind",
