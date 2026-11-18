@@ -1,15 +1,19 @@
 local CASCADE_JOKER_TABLE = {}
 
+-- How many copies each joker will make
 local JOKER_AMOUNT = 50
 
 function jokers_cascade()
+  -- Generate a cascade for each joker
   for index = 1, #G.jokers.cards do
     generate_individual_joker_cascade(index)
   end
 
+  -- Setup a delay before emptying the cascade
   local delete_cascade_cards_delay = 4
   delay(delete_cascade_cards_delay)
 
+  -- Empty the cascade
   G.E_MANAGER:add_event(Event({
     trigger = 'after',
     func = function()
@@ -23,8 +27,12 @@ function empty_cascade()
   for i = #CASCADE_JOKER_TABLE, 1, -1 do
     CASCADE_JOKER_TABLE[i]:remove()
   end
+  for _, card in ipairs(G.jokers.cards) do
+      card._3axux_fast_cascade = false
+  end
 end
 
+-- Make a cascade for an indexed joker
 function generate_individual_joker_cascade(index)
   local joker = G.jokers.cards[index]
   local current_joker_center = joker.config.center
@@ -46,7 +54,7 @@ function generate_individual_joker_cascade(index)
 
         update_cascade_table(card)
 
-        --sounds
+        -- Sound effects
         if coord_table[i+1] and coord_table[i+1].y < coords.y 
            and coord_table[i-1] and coord_table[i-1].y <= coords.y 
            or not coord_table[i+1] then
@@ -60,12 +68,6 @@ end
 
 function update_cascade_table(card)
   CASCADE_JOKER_TABLE[#CASCADE_JOKER_TABLE + 1] = card
-
-  if SMODS.Mods['3axux'].config.cascade == 2 then
-    if #CASCADE_JOKER_TABLE > JOKER_AMOUNT then
-      CASCADE_JOKER_TABLE[#CASCADE_JOKER_TABLE - JOKER_AMOUNT]:remove()
-    end
-  end
 end
 
 function get_cascade_coord_table(index)
@@ -125,13 +127,81 @@ end
 
 local old_win_game = win_game
 function win_game()
+  -- If cascade is enabled
   if SMODS.Mods['3axux'].config.cascade ~= 1 then
-    jokers_cascade()
-  end
+    -- Fast cascade mode
+    if SMODS.Mods['3axux'].config.cascade == 3 then
+      -- make jokers cascadely
+      for _, card in ipairs(G.jokers.cards) do
+        card._3axux_fast_cascade = true  
+      end
+    end
     
-  old_win_game()
+    jokers_cascade()    
+  end  
+
+  G.E_MANAGER:add_event(Event({
+  trigger = 'after',
+  func = function()
+    old_win_game()
+
+    return true
+  end
+  }))
 end
 
+local function is_fast_cascade_active()
+  -- Option is selected
+  if not SMODS.Mods['3axux'].config.cascade == 3 then
+    return false
+  end
+
+  -- During game
+  if not G or not G.jokers or not G.jokers.cards then
+    return false
+  end
+
+  -- Jokers have that property - cannot jump from one game to the other
+  for _, card in ipairs(G.jokers.cards) do
+    if card._3axux_fast_cascade then
+      return true
+    end
+  end
+
+  return false
+end
+
+-- Speed up the game for a faster cascade
+function event_manager_update(dt)
+  G.E_MANAGER:update(dt)
+  timer_checkpoint('e_manager', 'update')
+end
+
+local old_update = love.update
+function love.update(dt)
+    old_update(dt)
+
+    if is_fast_cascade_active() then
+      for i=1,7 do
+        if not is_fast_cascade_active() then break end
+        event_manager_update(dt)
+      end
+    end
+end
+
+-- Cashout button now turns off joker's custom fast ability
+local old_cash_out = G.FUNCS.cash_out
+function G.FUNCS.cash_out(e)
+  old_cash_out(e)
+
+  if G and G.jokers and G.jokers.cards then
+    for _, card in ipairs(G.jokers.cards) do
+      card._3axux_fast_cascade = false
+    end
+  end
+end
+
+-- Functionality for the config tab 
 function G.FUNCS.set_cascade(args)
     SMODS.Mods['3axux'].config.cascade = args.to_key
 end
