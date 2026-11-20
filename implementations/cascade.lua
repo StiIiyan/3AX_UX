@@ -1,7 +1,35 @@
 
 CASCADE_3AXUX = {
-  JOKER_TABLE = {},
+  JOKER_TABLE = {}, -- The table, containing the joker cards from the cascade
   JOKER_AMOUNT = 50, -- How many copies each joker will cascade into
+  -- Simple boolean checks
+  fast_cascade_option = function(self)
+    return SMODS.Mods['3axux'].config.cascade == 3
+  end,
+  enabled_cascade_option = function(self)
+    return SMODS.Mods['3axux'].config.cascade > 1
+  end,
+  -- Dictates whether or not the joker cascade should be fast
+  is_fast_cascade_active = function(self)
+    -- Option is selected
+    if not self:fast_cascade_option() then
+      return false
+    end
+
+    -- During game
+    if not G or not G.jokers or not G.jokers.cards then
+      return false
+    end
+
+    -- Jokers have that property - cannot jump from one game to the other
+    for _, card in ipairs(G.jokers.cards) do
+      if card._3axux_fast_cascade then
+        return true
+      end
+    end
+
+    return false
+  end,
   -- The entire cascade functionality
   jokers_cascade = function(self)
     self.JOKER_TABLE = {}
@@ -37,50 +65,7 @@ CASCADE_3AXUX = {
         card._3axux_fast_cascade = nil
     end
   end,
-  fast_cascade_option = function(self)
-    return SMODS.Mods['3axux'].config.cascade == 3
-  end,
-  enabled_cascade_option = function(self)
-    return SMODS.Mods['3axux'].config.cascade > 1
-  end,
-  is_fast_cascade_active = function(self)
-    -- Option is selected
-    if not self:fast_cascade_option() then
-      return false
-    end
-
-    -- During game
-    if not G or not G.jokers or not G.jokers.cards then
-      return false
-    end
-
-    -- Jokers have that property - cannot jump from one game to the other
-    for _, card in ipairs(G.jokers.cards) do
-      if card._3axux_fast_cascade then
-        return true
-      end
-    end
-
-    return false
-  end,
-  get_cascade_coord_table = function(self, index)
-    local current_joker = G.jokers.cards[index]
-    
-    local result_table = {}
-    local starting_pos = {x = current_joker.CT.x, y = current_joker.CT.y}
-    result_table[#result_table + 1] = starting_pos
-    
-    local height = 9.6 -- pretty much set in stone
-    local width = pseudorandom("",8, 20)
-    local bounces = math.max(2, math.floor(width / 4 + pseudorandom("",-1.0, 1.0) + 0.5))
-    local damping = pseudorandom("",0.3, 0.7) + (6 - bounces) * 0.45
-    local dx = width / self.JOKER_AMOUNT
-    local final_corner = { x = result_table[#result_table].x + width, y = result_table[#result_table].y + height }
-    
-    self:bounce_table(result_table, final_corner, height, bounces, damping, dx)
-
-    return result_table
-  end,
+  -- Creates the cascade of one joker
   generate_individual_joker_cascade = function(self, index)
     local joker = G.jokers.cards[index]
     local current_joker_center = joker.config.center
@@ -115,9 +100,30 @@ CASCADE_3AXUX = {
       }))
     end
   end,
+  -- Add a card to the JOKER_TABLE (so I can access it for deletion)
   update_cascade_table = function(self, card)
     self.JOKER_TABLE[#self.JOKER_TABLE + 1] = card
   end,
+  -- Setup variables for bounce_table(...)
+  get_cascade_coord_table = function(self, index)
+    local current_joker = G.jokers.cards[index]
+    
+    local result_table = {}
+    local starting_pos = {x = current_joker.CT.x, y = current_joker.CT.y}
+    result_table[#result_table + 1] = starting_pos
+    
+    local height = 9.6 -- pretty much set in stone
+    local width = pseudorandom("",8, 20)
+    local bounces = math.max(2, math.floor(width / 4 + pseudorandom("",-1.0, 1.0) + 0.5))
+    local damping = pseudorandom("",0.3, 0.7) + (6 - bounces) * 0.45
+    local dx = width / self.JOKER_AMOUNT
+    local final_corner = { x = result_table[#result_table].x + width, y = result_table[#result_table].y + height }
+    
+    self:bounce_table(result_table, final_corner, height, bounces, damping, dx)
+
+    return result_table
+  end,
+  -- Add all the cascade points to the table variable
   bounce_table = function(self, table, final_pos, amplitude, frequency, damping, dx)
       local p0 = table[#table]
       local p1 = final_pos
@@ -128,6 +134,7 @@ CASCADE_3AXUX = {
       local n = math.max(1, math.ceil(math.abs(W) / dx))
       local falling_down = true
 
+      -- Create a bunch of times half an ark of points and add them to the table variable
       for i = 1, n do
           local t = i / n
           local x = p0.x + W * t
@@ -157,11 +164,9 @@ CASCADE_3AXUX = {
 -- Cascade begins when the game is won
 local old_win_game = win_game
 function win_game()
-  -- If cascade is enabled
   if CASCADE_3AXUX:enabled_cascade_option() then
-    -- Fast cascade mode
     if CASCADE_3AXUX:fast_cascade_option() then
-      -- Give jokers special flag
+      -- Give jokers special flag for the duration of the cascade
       for _, card in ipairs(G.jokers.cards) do
         card._3axux_fast_cascade = true  
       end
@@ -198,7 +203,8 @@ function love.update(dt)
     end
 end
 
--- Cashout button now turns off joker's custom fast ability
+-- Cashout button turns off jokers' special flag
+-- (in case joker_cascade doesn't reach the empty_cascade() line from exiting preemptively and if you wanna go endless)
 local old_cash_out = G.FUNCS.cash_out
 function G.FUNCS.cash_out(e)
   old_cash_out(e)
@@ -206,9 +212,6 @@ function G.FUNCS.cash_out(e)
   if G and G.jokers and G.jokers.cards then
     for _, card in ipairs(G.jokers.cards) do
       card._3axux_fast_cascade = nil
-    end
-    if CASCADE_3AXUX:is_fast_cascade_active() then -- TODO remove, for debugging
-      
     end
   end
 end
